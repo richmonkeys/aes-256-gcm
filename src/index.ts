@@ -1,26 +1,32 @@
 import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes } from 'crypto'
 import base64url from 'base64url'
 
+const algorithm = 'aes-256-gcm'
+const interations = 1024
+const keyLen = 32
+const digest = 'sha512'
+const saltLen = 64
+const ivLen = 16
+const authTagLen = 16
+
 export function encryptWithPbkdf2(data: any, password: string) {
   const stringified = JSON.stringify(data)
-  const salt = randomBytes(64)
-  const iv = randomBytes(16)
-  const key = pbkdf2Sync(password, salt, 4096, 32, 'sha512')
-  const cipher = createCipheriv('aes-256-gcm', key, iv)
+  const salt = randomBytes(saltLen)
+  const iv = randomBytes(ivLen)
+  const key = pbkdf2Sync(password, salt, interations, keyLen, digest)
+  const cipher = createCipheriv(algorithm, key, iv)
   const encrypted = Buffer.concat([cipher.update(stringified), cipher.final()])
   const authTag = cipher.getAuthTag()
-  const packed = Buffer.concat([salt, iv, authTag, encrypted])
-  const encoded = base64url.encode(packed)
-  return encoded
+  return Buffer.concat([salt, iv, authTag, encrypted])
 }
 
 export function decryptWithPbkdf2(buffer: Buffer, password: string) {
-  const salt = buffer.slice(0, 64)
-  const iv = buffer.slice(64, 80)
-  const authTag = buffer.slice(80, 96)
-  const encrypted = buffer.slice(96)
-  const key = pbkdf2Sync(password, salt, 4096, 32, 'sha512')
-  const decipher = createDecipheriv('aes-256-gcm', key, iv)
+  const salt = buffer.slice(0, saltLen)
+  const iv = buffer.slice(saltLen, saltLen + ivLen)
+  const authTag = buffer.slice(saltLen + ivLen, saltLen + ivLen + authTagLen)
+  const encrypted = buffer.slice(saltLen + ivLen + authTagLen)
+  const key = pbkdf2Sync(password, salt, interations, keyLen, digest)
+  const decipher = createDecipheriv(algorithm, key, iv)
   decipher.setAuthTag(authTag)
   const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString()
   const parsed = JSON.parse(decrypted)
@@ -32,18 +38,18 @@ type Encoding = BufferEncoding | 'Buffer' | 'base64url'
 
 export function encryptWithKey(data: any, key: Buffer) {
   const stringified = JSON.stringify(data)
-  const iv = randomBytes(16)
-  const cipher = createCipheriv('aes-256-gcm', key, iv)
+  const iv = randomBytes(ivLen)
+  const cipher = createCipheriv(algorithm, key, iv)
   const encrypted = Buffer.concat([cipher.update(stringified), cipher.final()])
   const authTag = cipher.getAuthTag()
   return Buffer.concat([iv, authTag, encrypted])
 }
 
 export function decryptWithKey(buffer: Buffer, key: Buffer) {
-  const iv = buffer.slice(0, 16)
-  const authTag = buffer.slice(16, 32)
-  const encrypted = buffer.slice(32)
-  const decipher = createDecipheriv('aes-256-gcm', key, iv)
+  const iv = buffer.slice(0, ivLen)
+  const authTag = buffer.slice(ivLen, ivLen + authTagLen)
+  const encrypted = buffer.slice(ivLen + authTagLen)
+  const decipher = createDecipheriv(algorithm, key, iv)
   decipher.setAuthTag(authTag)
   const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString()
   const parsed = JSON.parse(decrypted)
@@ -52,22 +58,25 @@ export function decryptWithKey(buffer: Buffer, key: Buffer) {
 
 function encryptBasedOnPassword(data: any, password: string | Buffer) {
   if (password instanceof Buffer) {
-    return encryptWithKey(data, password)
+    if (password.length === keyLen) {
+      return encryptWithKey(data, password)
+    }
+    return encryptWithPbkdf2(data, password.toString())
   }
 
   const base64Key = Buffer.from(password, 'base64')
   const hexKey = Buffer.from(password, 'hex')
   const utf8Key = Buffer.from(password, 'utf8')
 
-  if (base64Key.length === 32) {
+  if (base64Key.length === keyLen) {
     return encryptWithKey(data, base64Key)
   }
 
-  if (hexKey.length === 32) {
+  if (hexKey.length === keyLen) {
     return encryptWithKey(data, hexKey)
   }
 
-  if (utf8Key.length === 32) {
+  if (utf8Key.length === keyLen) {
     return encryptWithKey(data, utf8Key)
   }
 
@@ -96,43 +105,47 @@ export function encrypt(data: any, password: string | Buffer, outputEncoding: En
 
 function decryptBasedOnPassword(buffer: Buffer, password: string | Buffer) {
   if (password instanceof Buffer) {
-    return decryptWithKey(buffer, password)
+    if (password.length === keyLen) {
+      return decryptWithKey(buffer, password)
+    }
+    return decryptWithPbkdf2(buffer, password.toString())
   }
 
   const base64Key = Buffer.from(password, 'base64')
   const hexKey = Buffer.from(password, 'hex')
   const utf8Key = Buffer.from(password, 'utf8')
 
-  if (base64Key.length === 32) {
+  if (base64Key.length === keyLen) {
     return decryptWithKey(buffer, base64Key)
   }
 
-  if (hexKey.length === 32) {
+  if (hexKey.length === keyLen) {
     return decryptWithKey(buffer, hexKey)
   }
 
-  if (utf8Key.length === 32) {
+  if (utf8Key.length === keyLen) {
     return decryptWithKey(buffer, utf8Key)
   }
 
   return decryptWithPbkdf2(buffer, password)
 }
 
-export function decrypt(data: any, password: string | Buffer, inputEncoding: Encoding = 'base64url') {
+export function decrypt(data: string | Buffer, password: string | Buffer, inputEncoding: Encoding = 'base64url') {
   if (!(password instanceof Buffer) && typeof password !== 'string') {
     throw new Error('Invalid password. Password must be either a string or buffer.')
   }
 
   switch (inputEncoding) {
     case 'Buffer': {
-      return decryptBasedOnPassword(data, password)
+      const buffer = data instanceof Buffer ? data : Buffer.from(data)
+      return decryptBasedOnPassword(buffer, password)
     }
     case 'base64url': {
-      const buffer = base64url.toBuffer(data)
+      const buffer = data instanceof Buffer ? data : base64url.toBuffer(data)
       return decryptBasedOnPassword(buffer, password)
     }
     default: {
-      const buffer = Buffer.from(data, inputEncoding as BufferEncoding)
+      const buffer = data instanceof Buffer ? data : Buffer.from(data, inputEncoding as BufferEncoding)
       return decryptBasedOnPassword(buffer, password)
     }
   }
