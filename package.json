@@ -1,0 +1,33 @@
+{
+  "name": "@richmonkeys/aes-256-gcm",
+  "version": "1.0.0",
+  "description": "Node.js aes-256-gcm encryption and decryption implementations with some quality-of-life options.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/richmonkeys/aes-256-gcm.git"
+  },
+  "keywords": [
+    "nodejs",
+    "crypto",
+    "aes",
+    "aes-256-gcm",
+    "encryption"
+  ],
+  "author": "richmonkeys",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/richmonkeys/aes-256-gcm/issues"
+  },
+  "homepage": "https://github.com/richmonkeys/aes-256-gcm#readme",
+  "devDependencies": {
+    "@types/node": "^14.14.11",
+    "typescript": "^4.1.2"
+  },
+  "dependencies": {
+    "base64url": "^3.0.1"
+  }
+}
