@@ -75,6 +75,10 @@ function encryptBasedOnPassword(data: any, password: string | Buffer) {
 }
 
 export function encrypt(data: any, password: string | Buffer, outputEncoding: Encoding = 'base64url') {
+  if (!(password instanceof Buffer) && typeof password !== 'string') {
+    throw new Error('Invalid password. Password must be either a string or buffer.')
+  }
+
   const encrypted = encryptBasedOnPassword(data, password)
 
   switch (outputEncoding) {
@@ -115,6 +119,10 @@ function decryptBasedOnPassword(buffer: Buffer, password: string | Buffer) {
 }
 
 export function decrypt(data: any, password: string | Buffer, inputEncoding: Encoding = 'base64url') {
+  if (!(password instanceof Buffer) && typeof password !== 'string') {
+    throw new Error('Invalid password. Password must be either a string or buffer.')
+  }
+
   switch (inputEncoding) {
     case 'Buffer': {
       return decryptBasedOnPassword(data, password)
