@@ -6,7 +6,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "prepublish": "tsc",
+    "clean": "tsc --build --clean",
+    "prepublish": "npm run clean && npm run build",
     "test": "jest"
   },
   "repository": {
