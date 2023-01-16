@@ -21,10 +21,10 @@ export function encryptWithPbkdf2(data: any, password: string) {
 }
 
 export function decryptWithPbkdf2(buffer: Buffer, password: string) {
-  const salt = buffer.slice(0, saltLen)
-  const iv = buffer.slice(saltLen, saltLen + ivLen)
-  const authTag = buffer.slice(saltLen + ivLen, saltLen + ivLen + authTagLen)
-  const encrypted = buffer.slice(saltLen + ivLen + authTagLen)
+  const salt = buffer.subarray(0, saltLen)
+  const iv = buffer.subarray(saltLen, saltLen + ivLen)
+  const authTag = buffer.subarray(saltLen + ivLen, saltLen + ivLen + authTagLen)
+  const encrypted = buffer.subarray(saltLen + ivLen + authTagLen)
   const key = pbkdf2Sync(password, salt, interations, keyLen, digest)
   const decipher = createDecipheriv(algorithm, key, iv)
   decipher.setAuthTag(authTag)
@@ -46,9 +46,9 @@ export function encryptWithKey(data: any, key: Buffer) {
 }
 
 export function decryptWithKey(buffer: Buffer, key: Buffer) {
-  const iv = buffer.slice(0, ivLen)
-  const authTag = buffer.slice(ivLen, ivLen + authTagLen)
-  const encrypted = buffer.slice(ivLen + authTagLen)
+  const iv = buffer.subarray(0, ivLen)
+  const authTag = buffer.subarray(ivLen, ivLen + authTagLen)
+  const encrypted = buffer.subarray(ivLen + authTagLen)
   const decipher = createDecipheriv(algorithm, key, iv)
   decipher.setAuthTag(authTag)
   const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString()
