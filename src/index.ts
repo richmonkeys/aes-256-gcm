@@ -1,5 +1,4 @@
 import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes } from 'crypto'
-import base64url from 'base64url'
 
 const algorithm = 'aes-256-gcm'
 const interations = 1024
@@ -94,9 +93,6 @@ export function encrypt(data: any, password: string | Buffer, outputEncoding: En
     case 'Buffer': {
       return encrypted
     }
-    case 'base64url': {
-      return base64url.encode(encrypted)
-    }
     default: {
       return encrypted.toString(outputEncoding as BufferEncoding)
     }
@@ -138,10 +134,6 @@ export function decrypt(data: string | Buffer, password: string | Buffer, inputE
   switch (inputEncoding) {
     case 'Buffer': {
       const buffer = data instanceof Buffer ? data : Buffer.from(data)
-      return decryptBasedOnPassword(buffer, password)
-    }
-    case 'base64url': {
-      const buffer = data instanceof Buffer ? data : base64url.toBuffer(data)
       return decryptBasedOnPassword(buffer, password)
     }
     default: {
